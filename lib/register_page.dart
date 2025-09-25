@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import 'dashboard_page.dart';
+import 'widgets/auth_shell.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -14,7 +16,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _auth = FirebaseAuth.instance;
   final _fs = FirebaseFirestore.instance;
 
-  // Sabit grup id – istersen setting ekranına taşırsın
+  final _formKey = GlobalKey<FormState>();
+
   final String groupId = 'building8_flat3';
 
   final _email = TextEditingController();
@@ -34,22 +37,19 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _register() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
     final email = _email.text.trim();
     final pass = _password.text.trim();
     final name = _name.text.trim();
 
-    if (email.isEmpty || pass.isEmpty || name.isEmpty || _roomNo == null) {
-      _toast('Tüm alanları doldur.');
-      return;
-    }
-
     setState(() => _loading = true);
     try {
-      // 1) auth oluştur
       final cred = await _auth.createUserWithEmailAndPassword(email: email, password: pass);
       final uid = cred.user!.uid;
 
-      // 2) oda boş mu? – transaction ile garanti
       await _fs.runTransaction((tx) async {
         final groupRef = _fs.collection('groups').doc(groupId);
         final snap = await tx.get(groupRef);
@@ -61,23 +61,20 @@ class _RegisterPageState extends State<RegisterPage> {
           throw Exception('Seçtiğin oda dolu.');
         }
 
-        // users koleksiyonu (opsiyonel)
         tx.set(_fs.collection('users').doc(uid), {
           'email': email,
           'name': name,
           'groupId': groupId,
           'roomNumber': _roomNo,
           'createdAt': FieldValue.serverTimestamp(),
-        });
+        }, SetOptions(merge: true));
 
-        // members’a ekle
         members.add({'uid': uid, 'roomNumber': _roomNo});
         tx.set(groupRef, {
           'members': members,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
-        // currentTasks hiç yoksa başlangıçta boş kalsın; dashboard “Take task” ile atanır
         tx.set(groupRef, {
           'currentTasks': {
             'trash': (data['currentTasks'] ?? const {})['trash'],
@@ -107,110 +104,101 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF2E335A), Color(0xFF1C1B33)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.12)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.25),
-                          blurRadius: 30,
-                          offset: const Offset(0, 18),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10, bottom: 24),
-                          child: Image.asset('assets/logo.png', height: 72),
-                        ),
-                        const Text(
-                          'Create account',
-                          style: TextStyle(
-                            fontSize: 22,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        _frostedField(
-                          controller: _name,
-                          hint: 'Full name',
-                          icon: Icons.person_outline,
-                        ),
-                        const SizedBox(height: 14),
-                        _frostedField(
-                          controller: _email,
-                          hint: 'Email',
-                          icon: Icons.alternate_email,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 14),
-                        _frostedField(
-                          controller: _password,
-                          hint: 'Password',
-                          icon: Icons.lock_outline,
-                          obscure: _obscure,
-                          trailing: IconButton(
-                            onPressed: () => setState(() => _obscure = !_obscure),
-                            icon: Icon(
-                              _obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _roomSelector(),
-                        const SizedBox(height: 18),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: _loading ? null : _register,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6C63FF),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            child: _loading
-                                ? const SizedBox(
-                                    width: 22, height: 22,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                  )
-                                : const Text('Sign up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: _loading ? null : () => Navigator.pop(context),
-                          child: const Text('Back to sign in'),
-                        ),
-                      ],
-                    ),
-                  ),
+    return AuthShell(
+      child: Form(
+        key: _formKey,
+        child: AutofillGroup(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(child: Image.asset('assets/loogo.png', height: 88)),
+              const SizedBox(height: 12),
+              Text(
+                'Yeni FlatMate hesabı oluştur',
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              _frostedField(
+                controller: _name,
+                label: 'Ad soyad',
+                icon: Icons.person_outline,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.name],
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'İsim gerekli';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              _frostedField(
+                controller: _email,
+                label: 'Email',
+                icon: Icons.alternate_email,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                validator: (value) {
+                  final text = value?.trim() ?? '';
+                  if (text.isEmpty) {
+                    return 'Email gerekli';
+                  }
+                  if (!text.contains('@') || !text.contains('.')) {
+                    return 'Geçerli bir email gir';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              _frostedField(
+                controller: _password,
+                label: 'Şifre',
+                icon: Icons.lock_outline,
+                obscure: _obscure,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.newPassword],
+                validator: (value) {
+                  final text = value ?? '';
+                  if (text.isEmpty) {
+                    return 'Şifre gerekli';
+                  }
+                  if (text.length < 6) {
+                    return 'Şifre en az 6 karakter olmalı';
+                  }
+                  return null;
+                },
+                trailing: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(_obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded),
                 ),
               ),
-            ),
+              const SizedBox(height: 14),
+              _roomSelector(),
+              const SizedBox(height: 22),
+              SizedBox(
+                height: 48,
+                child: FilledButton(
+                  onPressed: _loading ? null : _register,
+                  child: _loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Kaydı tamamla'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _loading ? null : () => Navigator.pop(context),
+                child: const Text('Zaten hesabım var'),
+              ),
+            ],
           ),
         ),
       ),
@@ -218,70 +206,98 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _roomSelector() {
-    // 1..20 (dilersen artır)
     final items = List.generate(20, (i) => i + 1);
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          value: _roomNo,
-          isExpanded: true,
-          dropdownColor: const Color(0xFF2B2A49),
-          iconEnabledColor: Colors.white70,
-          hint: Text('Select room number',
-              style: TextStyle(color: Colors.white.withOpacity(0.7))),
-          items: items
-              .map((n) => DropdownMenuItem(
-                    value: n,
-                    child: Text('Room $n', style: const TextStyle(color: Colors.white)),
-                  ))
-              .toList(),
-          onChanged: (v) => setState(() => _roomNo = v),
-        ),
-      ),
+    return FormField<int>(
+      validator: (_) => _roomNo == null ? 'Oda seçmelisin' : null,
+      builder: (state) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withOpacity(0.18)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _roomNo,
+                  isExpanded: true,
+                  dropdownColor: const Color(0xFF2B2A49),
+                  iconEnabledColor: Colors.white70,
+                  hint: Text(
+                    'Oda numarası seç',
+                    style: TextStyle(color: Colors.white.withOpacity(0.72)),
+                  ),
+                  items: items
+                      .map((n) => DropdownMenuItem(
+                            value: n,
+                            child: Text('Oda $n', style: const TextStyle(color: Colors.white)),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    setState(() => _roomNo = v);
+                    state.didChange(v);
+                  },
+                ),
+              ),
+            ),
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(
+                  state.errorText!,
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
   Widget _frostedField({
     required TextEditingController controller,
-    required String hint,
+    required String label,
     required IconData icon,
     TextInputType? keyboardType,
     bool obscure = false,
     Widget? trailing,
+    TextInputAction? textInputAction,
+    Iterable<String>? autofillHints,
+    String? Function(String?)? validator,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.10),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        border: Border.all(color: Colors.white.withOpacity(0.18)),
       ),
       child: Row(
         children: [
-          const SizedBox(width: 12),
-          Icon(icon, color: Colors.white70),
-          const SizedBox(width: 8),
+          const SizedBox(width: 14),
+          Icon(icon),
+          const SizedBox(width: 10),
           Expanded(
-            child: TextField(
+            child: TextFormField(
               controller: controller,
               obscureText: obscure,
               keyboardType: keyboardType,
+              textInputAction: textInputAction,
+              autofillHints: autofillHints,
+              validator: validator,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                labelText: label,
+                labelStyle: TextStyle(color: Colors.white.withOpacity(0.72)),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                contentPadding: const EdgeInsets.symmetric(vertical: 18),
               ),
             ),
           ),
           if (trailing != null) trailing,
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
         ],
       ),
     );
