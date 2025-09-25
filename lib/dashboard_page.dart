@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -47,14 +49,14 @@ class _DashboardPageState extends State<DashboardPage>
       stream: docRef.snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
-          return _statusScaffold('Hata: ${snap.error}');
+          return _statusScaffold('Error: ${snap.error}');
         }
         if (!snap.hasData) {
           return _statusScaffold(null);
         }
         final data = snap.data!.data();
         if (data == null) {
-          return _statusScaffold('Grup bulunamadı: ${widget.groupId}');
+          return _statusScaffold('Group not found: ${widget.groupId}');
         }
 
         final members = _parseMembers(data['members']);
@@ -71,7 +73,7 @@ class _DashboardPageState extends State<DashboardPage>
             .toList()
           ..sort();
         if (roomNumbers.isEmpty) {
-          roomNumbers.addAll(List.generate(10, (i) => i + 1));
+          roomNumbers.addAll(List.generate(13, (i) => i + 1));
         }
 
         final overviewTab = _OverviewTab(
@@ -103,7 +105,7 @@ class _DashboardPageState extends State<DashboardPage>
             ? FloatingActionButton.extended(
                 onPressed: () => _expensesKey.currentState?.openAddExpenseSheet(),
                 icon: const Icon(Icons.add),
-                label: const Text('Harcama ekle'),
+                label: const Text('Add expense'),
               )
             : null;
 
@@ -126,16 +128,16 @@ class _DashboardPageState extends State<DashboardPage>
             actions: [
               IconButton(
                 onPressed: _signOut,
-                tooltip: 'Çıkış yap',
+                tooltip: 'Sign out',
                 icon: const Icon(Icons.logout),
               ),
             ],
             bottom: TabBar(
               controller: _tabController,
               tabs: const [
-                Tab(icon: Icon(Icons.dashboard_outlined), text: 'Genel'),
-                Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Giderler'),
-                Tab(icon: Icon(Icons.history), text: 'Tarihçe'),
+                Tab(icon: Icon(Icons.dashboard_outlined), text: 'Overview'),
+                Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Expenses'),
+                Tab(icon: Icon(Icons.history), text: 'History'),
               ],
             ),
           ),
@@ -158,9 +160,9 @@ class _DashboardPageState extends State<DashboardPage>
     List<_Member> members,
   ) {
     final configs = const [
-      _TaskConfig(key: 'trash', title: 'Çöp', color: Color(0xFFFFC107)),
-      _TaskConfig(key: 'kitchen', title: 'Mutfak', color: Color(0xFF42A5F5)),
-      _TaskConfig(key: 'living_room', title: 'Salon', color: Color(0xFF66BB6A)),
+      _TaskConfig(key: 'trash', title: 'Trash', color: Color(0xFFFFC107)),
+      _TaskConfig(key: 'kitchen', title: 'Kitchen', color: Color(0xFF42A5F5)),
+      _TaskConfig(key: 'living_room', title: 'Living Room', color: Color(0xFF66BB6A)),
     ];
 
     final user = _auth.currentUser;
@@ -205,21 +207,21 @@ class _DashboardPageState extends State<DashboardPage>
     final userRoom = _roomForUid(user.uid, members);
     final alreadyYours = _isAssignmentForUser(assignment, user, userRoom);
     if (alreadyYours) {
-      _showSnack('Görev zaten sende.');
+      _showSnack('This task is already assigned to you.');
       return;
     }
 
     if (assignment != null) {
       final assignedRoom = _assignmentToRoom(assignment, members);
-      final who = assignedRoom == null ? 'başkası' : 'Oda $assignedRoom';
+      final who = assignedRoom == null ? 'someone else' : 'Room $assignedRoom';
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Görevi devral'),
-          content: Text('Görev şu anda $who tarafından üstlenilmiş. Devralmak istiyor musun?'),
+          title: const Text('Take over the task'),
+          content: Text('This task is currently handled by $who. Do you want to take it over?'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Devral')),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Take over')),
           ],
         ),
       );
@@ -235,9 +237,9 @@ class _DashboardPageState extends State<DashboardPage>
         'completedTasks.$taskKey': false,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      _showSnack('Görev sana atandı.');
+      _showSnack('The task is now assigned to you.');
     } catch (e) {
-      _showSnack('Görev alınamadı: $e');
+      _showSnack('Unable to take the task: $e');
     }
   }
 
@@ -253,18 +255,18 @@ class _DashboardPageState extends State<DashboardPage>
     final userRoom = _roomForUid(user.uid, members);
     final assignedToYou = _isAssignmentForUser(assignment, user, userRoom);
     if (!assignedToYou) {
-      _showSnack('Görev senin üzerinde değil.');
+      _showSnack('This task is not assigned to you.');
       return;
     }
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Görev tamamlandı mı?'),
-        content: const Text('Bu görevi tamamladığını onaylıyor musun?'),
+        title: const Text('Mark task as done'),
+        content: const Text('Do you confirm that you have completed this task?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hayır')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Evet')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
         ],
       ),
     );
@@ -274,11 +276,32 @@ class _DashboardPageState extends State<DashboardPage>
 
     final ref = FirebaseFirestore.instance.collection('groups').doc(widget.groupId);
     try {
-      await ref.set({
-        'completedTasks.$taskKey': true,
-        'currentTasks.$taskKey': user.uid,
+      final orderedRooms = members
+          .map((m) => m.roomNumber)
+          .whereType<int>()
+          .toSet()
+          .toList()
+        ..sort();
+      if (orderedRooms.isEmpty) {
+        orderedRooms.addAll(List.generate(13, (index) => index + 1));
+      }
+      final currentRoom = _assignmentToRoom(assignment, members);
+      final nextRoom = _nextRoom(currentRoom, orderedRooms);
+      final nextUid = nextRoom == null ? null : _uidForRoom(nextRoom, members);
+
+      final Map<String, dynamic> updates = {
+        'completedTasks.$taskKey': false,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+      if (nextUid != null) {
+        updates['currentTasks.$taskKey'] = nextUid;
+      } else if (nextRoom != null) {
+        updates['currentTasks.$taskKey'] = nextRoom;
+      } else {
+        updates['currentTasks.$taskKey'] = FieldValue.delete();
+      }
+
+      await ref.set(updates, SetOptions(merge: true));
 
       await ref.collection('taskHistory').add({
         'task': taskKey,
@@ -288,9 +311,9 @@ class _DashboardPageState extends State<DashboardPage>
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      _showSnack('Harika! Görev tamamlandı.');
+      _showSnack('Great! Task marked as complete.');
     } catch (e) {
-      _showSnack('Görev işaretlenemedi: $e');
+      _showSnack('Unable to mark the task as complete: $e');
     }
   }
 
@@ -318,6 +341,27 @@ class _DashboardPageState extends State<DashboardPage>
     if (assignment is num) return assignment.toInt();
     if (assignment is String) {
       return _roomForUid(assignment, members);
+    }
+    return null;
+  }
+
+  int? _nextRoom(int? currentRoom, List<int> orderedRooms) {
+    if (orderedRooms.isEmpty) return currentRoom;
+    if (currentRoom == null) {
+      return orderedRooms.first;
+    }
+    final index = orderedRooms.indexOf(currentRoom);
+    if (index == -1) {
+      return orderedRooms.first;
+    }
+    return orderedRooms[(index + 1) % orderedRooms.length];
+  }
+
+  String? _uidForRoom(int room, List<_Member> members) {
+    for (final member in members) {
+      if (member.roomNumber == room) {
+        return member.uid.isEmpty ? null : member.uid;
+      }
     }
     return null;
   }
@@ -410,6 +454,10 @@ class _OverviewTab extends StatelessWidget {
           occupiedRooms: occupiedRooms,
         ),
         const SizedBox(height: 20),
+        _TaskRotationCard(
+          tasks: tasks,
+        ),
+        const SizedBox(height: 20),
         for (final task in tasks) ...[
           _TaskCard(
             data: task,
@@ -419,7 +467,7 @@ class _OverviewTab extends StatelessWidget {
           const SizedBox(height: 12),
         ],
         const SizedBox(height: 8),
-        Text('Son aktiviteler', style: theme.textTheme.titleMedium),
+        Text('Recent activity', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         _RecentActivityList(stream: historyStream),
       ],
@@ -460,7 +508,7 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 const Icon(Icons.person_pin_circle_outlined, size: 20),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Sen: $yourEmail')),
+                Expanded(child: Text('You: $yourEmail')),
               ],
             ),
             const SizedBox(height: 8),
@@ -468,21 +516,21 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 const Icon(Icons.meeting_room_outlined, size: 20),
                 const SizedBox(width: 8),
-                Text('Odan: ${yourRoom ?? '-'}'),
+                Text('Your room: ${yourRoom ?? '-'}'),
               ],
             ),
             const SizedBox(height: 16),
-            Text('Oda dağılımı', style: theme.textTheme.labelLarge),
+            Text('Room distribution', style: theme.textTheme.labelLarge),
             const SizedBox(height: 8),
             if (occupiedRooms.isEmpty)
-              const Text('Henüz kayıtlı üye yok.')
+              const Text('No registered members yet.')
             else
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: occupiedRooms
                     .map((room) => Chip(
-                          label: Text('Oda $room'),
+                          label: Text('Room $room'),
                           avatar: const Icon(Icons.bed_outlined, size: 18),
                         ))
                     .toList(),
@@ -491,6 +539,143 @@ class _SummaryCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _TaskRotationCard extends StatelessWidget {
+  const _TaskRotationCard({required this.tasks});
+
+  final List<_TaskTileData> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final roomColors = <int, Color>{};
+    for (final task in tasks) {
+      final room = task.assignedRoom;
+      if (room != null && !roomColors.containsKey(room)) {
+        roomColors[room] = task.color;
+      }
+    }
+
+    final assignedChips = tasks
+        .where((task) => task.assignedRoom != null)
+        .map(
+          (task) => Chip(
+            avatar: CircleAvatar(backgroundColor: task.color),
+            label: Text('${task.title} • Room ${task.assignedRoom!}'),
+          ),
+        )
+        .toList();
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Rotation overview',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 220,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final size = math.min(constraints.maxWidth, constraints.maxHeight);
+                  return Center(
+                    child: SizedBox(
+                      width: size,
+                      height: size,
+                      child: CustomPaint(
+                        painter: _RotationPiePainter(roomColors: roomColors),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'The pie chart is divided into 13 rooms. Rooms with an active task are colored with that task\'s color.',
+              style: theme.textTheme.bodySmall,
+            ),
+            if (assignedChips.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: assignedChips,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RotationPiePainter extends CustomPainter {
+  _RotationPiePainter({required this.roomColors});
+
+  final Map<int, Color> roomColors;
+
+  static const int _segmentCount = 13;
+  static const Color _defaultColor = Color(0xFFE0E0E0);
+  static const Color _borderColor = Colors.white;
+  static const Color _textColor = Colors.black87;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final sweepAngle = (2 * math.pi) / _segmentCount;
+    final fillPaint = Paint()..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = _borderColor;
+
+    for (int i = 0; i < _segmentCount; i++) {
+      final startAngle = -math.pi / 2 + (sweepAngle * i);
+      final roomNumber = i + 1;
+      fillPaint.color = roomColors[roomNumber] ?? _defaultColor;
+      canvas.drawArc(rect, startAngle, sweepAngle, true, fillPaint);
+      canvas.drawArc(rect, startAngle, sweepAngle, true, borderPaint);
+
+      final angle = startAngle + sweepAngle / 2;
+      final labelRadius = radius * 0.65;
+      final labelOffset = center + Offset(math.cos(angle), math.sin(angle)) * labelRadius;
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '$roomNumber',
+          style: TextStyle(
+            color: _textColor,
+            fontWeight: FontWeight.w600,
+            fontSize: radius * 0.16,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final textOffset = labelOffset - Offset(textPainter.width / 2, textPainter.height / 2);
+      textPainter.paint(canvas, textOffset);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RotationPiePainter oldDelegate) {
+    if (identical(this, oldDelegate)) return false;
+    if (roomColors.length != oldDelegate.roomColors.length) return true;
+    for (final entry in roomColors.entries) {
+      if (oldDelegate.roomColors[entry.key] != entry.value) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 
@@ -509,7 +694,7 @@ class _TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final assignedText =
-        data.assignedRoom == null ? 'Henüz atanmamış' : 'Oda ${data.assignedRoom}';
+        data.assignedRoom == null ? 'Unassigned' : 'Room ${data.assignedRoom}';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -535,21 +720,21 @@ class _TaskCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text('Atanan: $assignedText'),
+            Text('Assigned to: $assignedText'),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: data.takenByAnother && !data.assignedToYou ? null : onTake,
-                    child: const Text('Görevi al'),
+                    child: const Text('Take task'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: FilledButton(
                     onPressed: data.assignedToYou ? onDone : null,
-                    child: const Text('Tamamlandı'),
+                    child: const Text('Mark done'),
                   ),
                 ),
               ],
@@ -558,7 +743,7 @@ class _TaskCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Bu görev senin sorumluluğunda.',
+                  'You are currently responsible for this task.',
                   style: theme.textTheme.bodySmall?.copyWith(color: data.color),
                 ),
               )
@@ -566,7 +751,7 @@ class _TaskCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Görev şu anda başka bir odada.',
+                  'This task is currently assigned to another room.',
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -592,7 +777,7 @@ class _RecentActivityList extends StatelessWidget {
         stream: stream,
         builder: (context, snap) {
           if (snap.hasError) {
-            return _CardMessage('Tarihçe yüklenemedi: ${snap.error}');
+            return _CardMessage('Unable to load history: ${snap.error}');
           }
           if (!snap.hasData) {
             return const Padding(
@@ -602,7 +787,7 @@ class _RecentActivityList extends StatelessWidget {
           }
           final docs = snap.data!.docs;
           if (docs.isEmpty) {
-            return const _CardMessage('Henüz görev kaydı yok.');
+            return const _CardMessage('There are no task records yet.');
           }
 
           return ListView.separated(
@@ -628,7 +813,7 @@ class _RecentActivityList extends StatelessWidget {
                     style: theme.textTheme.labelLarge,
                   ),
                 ),
-                title: Text(task.isEmpty ? 'Görev' : task),
+                title: Text(task.isEmpty ? 'Task' : task),
                 subtitle: Text([
                   if (email.isNotEmpty) email,
                   if (timeLabel.isNotEmpty) timeLabel,
