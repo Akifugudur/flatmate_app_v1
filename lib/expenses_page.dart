@@ -57,7 +57,7 @@ class ExpensesPageState extends State<ExpensesPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Yeni harcama',
+                  'New expense',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   textAlign: TextAlign.center,
                 ),
@@ -65,25 +65,26 @@ class ExpensesPageState extends State<ExpensesPage> {
                 TextFormField(
                   controller: descCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Açıklama',
-                    hintText: 'Örn. Bulaşık deterjanı',
+                    labelText: 'Description',
+                    hintText: 'e.g. Dish soap',
                     border: OutlineInputBorder(),
                   ),
                   textCapitalization: TextCapitalization.sentences,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Açıklama zorunlu' : null,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Description is required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: priceCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'Tutar (₺)',
+                    labelText: 'Amount (₺)',
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Tutar zorunlu';
+                    if (v == null || v.trim().isEmpty) return 'Amount is required';
                     final amount = double.tryParse(v.replaceAll(',', '.'));
-                    if (amount == null || amount <= 0) return 'Geçerli bir tutar gir';
+                    if (amount == null || amount <= 0) return 'Enter a valid amount';
                     return null;
                   },
                 ),
@@ -91,14 +92,14 @@ class ExpensesPageState extends State<ExpensesPage> {
                 DropdownButtonFormField<int>(
                   value: buyerRoom,
                   items: widget.roomNumbers.map((room) {
-                    return DropdownMenuItem(value: room, child: Text('Oda $room'));
+                    return DropdownMenuItem(value: room, child: Text('Room $room'));
                   }).toList(),
                   onChanged: (v) => buyerRoom = v,
                   decoration: const InputDecoration(
-                    labelText: 'Kim aldı? (Oda)',
+                    labelText: 'Who bought it? (Room)',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) => v == null ? 'Oda seç' : null,
+                  validator: (v) => v == null ? 'Select a room' : null,
                 ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
@@ -119,7 +120,7 @@ class ExpensesPageState extends State<ExpensesPage> {
                     if (mounted) Navigator.pop(ctx);
                   },
                   icon: const Icon(Icons.save),
-                  label: const Text('Kaydet'),
+                  label: const Text('Save'),
                 ),
               ],
             ),
@@ -133,11 +134,11 @@ class ExpensesPageState extends State<ExpensesPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Silinsin mi?'),
-        content: const Text('Bu harcamayı silmek istediğine emin misin?'),
+        title: const Text('Delete this expense?'),
+        content: const Text('Are you sure you want to delete this expense?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sil')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
         ],
       ),
     );
@@ -173,14 +174,14 @@ class ExpensesPageState extends State<ExpensesPage> {
               children: [
                 Image.asset('assets/loogo.png', height: 28),
                 const SizedBox(width: 8),
-                const Text('Giderler'),
+                const Text('Expenses'),
               ],
             ),
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: _addExpenseDialog,
             icon: const Icon(Icons.add),
-            label: const Text('Harcama ekle'),
+            label: const Text('Add expense'),
           ),
           body: Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
@@ -196,7 +197,7 @@ class ExpensesPageState extends State<ExpensesPage> {
       stream: q.snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
-          return Center(child: Text('Hata: ${snap.error}'));
+          return Center(child: Text('Error: ${snap.error}'));
         }
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -257,7 +258,7 @@ class ExpensesPageState extends State<ExpensesPage> {
                         IconButton(
                           icon: const Icon(Icons.delete_outline),
                           onPressed: () => _deleteExpense(doc.id),
-                          tooltip: 'Sil',
+                          tooltip: 'Delete',
                         ),
                       ],
                     ),
@@ -307,7 +308,7 @@ class _ExpensesSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Toplam: ₺${grandTotal.toStringAsFixed(2)}',
+            Text('Total: ₺${grandTotal.toStringAsFixed(2)}',
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Wrap(
@@ -316,7 +317,7 @@ class _ExpensesSummary extends StatelessWidget {
               children: visibleRooms.map((room) {
                 final amount = totalsByRoom[room] ?? 0;
                 return Chip(
-                  label: Text('Oda $room • ₺${amount.toStringAsFixed(0)}'),
+                  label: Text('Room $room • ₺${amount.toStringAsFixed(0)}'),
                 );
               }).toList(),
             ),
@@ -338,9 +339,9 @@ class _EmptyExpensesState extends StatelessWidget {
         children: const [
           Icon(Icons.receipt_long_outlined, size: 48),
           SizedBox(height: 12),
-          Text('Henüz harcama eklenmemiş.'),
+          Text('No expenses yet.'),
           SizedBox(height: 4),
-          Text('Sağ alttaki butonla ilk harcamanı kaydet.'),
+          Text('Use the button in the bottom-right to add your first expense.'),
         ],
       ),
     );

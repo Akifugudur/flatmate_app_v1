@@ -11,15 +11,15 @@ Future<void> bootstrapGroup({
 
   final groupRef = FirebaseFirestore.instance.collection('groups').doc(groupId);
 
-  // 1) GRUBU OKUMADAN OLUŞTUR / MERGE ET
+  // 1) Create or merge the group without reading it.
   await groupRef.set({
     'name': groupName,
     'createdBy': uid,
     'createdAt': FieldValue.serverTimestamp(),
     'rotationStart': {'trash': 1, 'living_room': 5, 'kitchen': 10},
-  }, SetOptions(merge: true)); // <-- okuma yok, direkt yaz
+  }, SetOptions(merge: true)); // <-- no read, write directly
 
-  // 2) KENDİNİ ÜYE OLARAK EKLE (bu yazma kurallara göre serbest)
+  // 2) Add yourself as a member (allowed by the write rules).
   final memberRef = groupRef.collection('members').doc(uid);
   await memberRef.set({
     'roomNumber': 1,
@@ -27,10 +27,10 @@ Future<void> bootstrapGroup({
     'joinedAt': FieldValue.serverTimestamp(),
   }, SetOptions(merge: true));
 
-  // 3) ARTIK ÜYESİN → TASKS OLUŞTUR
+  // 3) You are now a member -> create tasks.
   final tasksRef = groupRef.collection('tasks');
 
-  // tek tek merge ile yaz (varsa üstüne yazmaz, yoksa oluşturur)
+  // Write each doc with merge (no overwrite if present, creates if missing).
   await tasksRef.doc('trash').set({
     'name': 'trash',
     'assignedRoomNumber': 1,
