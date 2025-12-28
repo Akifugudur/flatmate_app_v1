@@ -47,14 +47,14 @@ class _DashboardPageState extends State<DashboardPage>
       stream: docRef.snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
-          return _statusScaffold('Hata: ${snap.error}');
+          return _statusScaffold('Error: ${snap.error}');
         }
         if (!snap.hasData) {
           return _statusScaffold(null);
         }
         final data = snap.data!.data();
         if (data == null) {
-          return _statusScaffold('Grup bulunamadı: ${widget.groupId}');
+          return _statusScaffold('Group not found: ${widget.groupId}');
         }
 
         final members = _parseMembers(data['members']);
@@ -103,7 +103,7 @@ class _DashboardPageState extends State<DashboardPage>
             ? FloatingActionButton.extended(
                 onPressed: () => _expensesKey.currentState?.openAddExpenseSheet(),
                 icon: const Icon(Icons.add),
-                label: const Text('Harcama ekle'),
+                label: const Text('Add expense'),
               )
             : null;
 
@@ -126,16 +126,16 @@ class _DashboardPageState extends State<DashboardPage>
             actions: [
               IconButton(
                 onPressed: _signOut,
-                tooltip: 'Çıkış yap',
+                tooltip: 'Sign out',
                 icon: const Icon(Icons.logout),
               ),
             ],
             bottom: TabBar(
               controller: _tabController,
               tabs: const [
-                Tab(icon: Icon(Icons.dashboard_outlined), text: 'Genel'),
-                Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Giderler'),
-                Tab(icon: Icon(Icons.history), text: 'Tarihçe'),
+                Tab(icon: Icon(Icons.dashboard_outlined), text: 'Overview'),
+                Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Expenses'),
+                Tab(icon: Icon(Icons.history), text: 'History'),
               ],
             ),
           ),
@@ -158,9 +158,9 @@ class _DashboardPageState extends State<DashboardPage>
     List<_Member> members,
   ) {
     final configs = const [
-      _TaskConfig(key: 'trash', title: 'Çöp', color: Color(0xFFFFC107)),
-      _TaskConfig(key: 'kitchen', title: 'Mutfak', color: Color(0xFF42A5F5)),
-      _TaskConfig(key: 'living_room', title: 'Salon', color: Color(0xFF66BB6A)),
+      _TaskConfig(key: 'trash', title: 'Trash', color: Color(0xFFFFC107)),
+      _TaskConfig(key: 'kitchen', title: 'Kitchen', color: Color(0xFF42A5F5)),
+      _TaskConfig(key: 'living_room', title: 'Living room', color: Color(0xFF66BB6A)),
     ];
 
     final user = _auth.currentUser;
@@ -205,21 +205,21 @@ class _DashboardPageState extends State<DashboardPage>
     final userRoom = _roomForUid(user.uid, members);
     final alreadyYours = _isAssignmentForUser(assignment, user, userRoom);
     if (alreadyYours) {
-      _showSnack('Görev zaten sende.');
+      _showSnack('This task is already assigned to you.');
       return;
     }
 
     if (assignment != null) {
       final assignedRoom = _assignmentToRoom(assignment, members);
-      final who = assignedRoom == null ? 'başkası' : 'Oda $assignedRoom';
+      final who = assignedRoom == null ? 'someone else' : 'Room $assignedRoom';
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Görevi devral'),
-          content: Text('Görev şu anda $who tarafından üstlenilmiş. Devralmak istiyor musun?'),
+          title: const Text('Take over task?'),
+          content: Text('This task is currently taken by $who. Do you want to take it?'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Devral')),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Take over')),
           ],
         ),
       );
@@ -235,9 +235,9 @@ class _DashboardPageState extends State<DashboardPage>
         'completedTasks.$taskKey': false,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      _showSnack('Görev sana atandı.');
+      _showSnack('Task assigned to you.');
     } catch (e) {
-      _showSnack('Görev alınamadı: $e');
+      _showSnack('Could not take task: $e');
     }
   }
 
@@ -253,18 +253,18 @@ class _DashboardPageState extends State<DashboardPage>
     final userRoom = _roomForUid(user.uid, members);
     final assignedToYou = _isAssignmentForUser(assignment, user, userRoom);
     if (!assignedToYou) {
-      _showSnack('Görev senin üzerinde değil.');
+      _showSnack('This task is not assigned to you.');
       return;
     }
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Görev tamamlandı mı?'),
-        content: const Text('Bu görevi tamamladığını onaylıyor musun?'),
+        title: const Text('Mark task as done?'),
+        content: const Text('Are you sure you completed this task?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hayır')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Evet')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
         ],
       ),
     );
@@ -288,9 +288,9 @@ class _DashboardPageState extends State<DashboardPage>
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      _showSnack('Harika! Görev tamamlandı.');
+      _showSnack('Nice! Task completed.');
     } catch (e) {
-      _showSnack('Görev işaretlenemedi: $e');
+      _showSnack('Could not mark task: $e');
     }
   }
 
@@ -419,7 +419,7 @@ class _OverviewTab extends StatelessWidget {
           const SizedBox(height: 12),
         ],
         const SizedBox(height: 8),
-        Text('Son aktiviteler', style: theme.textTheme.titleMedium),
+        Text('Recent activity', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         _RecentActivityList(stream: historyStream),
       ],
@@ -460,7 +460,7 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 const Icon(Icons.person_pin_circle_outlined, size: 20),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Sen: $yourEmail')),
+                Expanded(child: Text('You: $yourEmail')),
               ],
             ),
             const SizedBox(height: 8),
@@ -468,21 +468,21 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 const Icon(Icons.meeting_room_outlined, size: 20),
                 const SizedBox(width: 8),
-                Text('Odan: ${yourRoom ?? '-'}'),
+                Text('Your room: ${yourRoom ?? '-'}'),
               ],
             ),
             const SizedBox(height: 16),
-            Text('Oda dağılımı', style: theme.textTheme.labelLarge),
+            Text('Room allocation', style: theme.textTheme.labelLarge),
             const SizedBox(height: 8),
             if (occupiedRooms.isEmpty)
-              const Text('Henüz kayıtlı üye yok.')
+              const Text('No registered members yet.')
             else
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: occupiedRooms
                     .map((room) => Chip(
-                          label: Text('Oda $room'),
+                          label: Text('Room $room'),
                           avatar: const Icon(Icons.bed_outlined, size: 18),
                         ))
                     .toList(),
@@ -509,7 +509,7 @@ class _TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final assignedText =
-        data.assignedRoom == null ? 'Henüz atanmamış' : 'Oda ${data.assignedRoom}';
+        data.assignedRoom == null ? 'Unassigned' : 'Room ${data.assignedRoom}';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -535,21 +535,21 @@ class _TaskCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text('Atanan: $assignedText'),
+            Text('Assigned: $assignedText'),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: data.takenByAnother && !data.assignedToYou ? null : onTake,
-                    child: const Text('Görevi al'),
+                    child: const Text('Take task'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: FilledButton(
                     onPressed: data.assignedToYou ? onDone : null,
-                    child: const Text('Tamamlandı'),
+                    child: const Text('Completed'),
                   ),
                 ),
               ],
@@ -558,7 +558,7 @@ class _TaskCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Bu görev senin sorumluluğunda.',
+                  'This task is your responsibility.',
                   style: theme.textTheme.bodySmall?.copyWith(color: data.color),
                 ),
               )
@@ -566,7 +566,7 @@ class _TaskCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Görev şu anda başka bir odada.',
+                  'This task is currently assigned to another room.',
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -592,7 +592,7 @@ class _RecentActivityList extends StatelessWidget {
         stream: stream,
         builder: (context, snap) {
           if (snap.hasError) {
-            return _CardMessage('Tarihçe yüklenemedi: ${snap.error}');
+            return _CardMessage('History failed to load: ${snap.error}');
           }
           if (!snap.hasData) {
             return const Padding(
@@ -602,7 +602,7 @@ class _RecentActivityList extends StatelessWidget {
           }
           final docs = snap.data!.docs;
           if (docs.isEmpty) {
-            return const _CardMessage('Henüz görev kaydı yok.');
+            return const _CardMessage('No task history yet.');
           }
 
           return ListView.separated(
@@ -628,7 +628,7 @@ class _RecentActivityList extends StatelessWidget {
                     style: theme.textTheme.labelLarge,
                   ),
                 ),
-                title: Text(task.isEmpty ? 'Görev' : task),
+                title: Text(task.isEmpty ? 'Task' : task),
                 subtitle: Text([
                   if (email.isNotEmpty) email,
                   if (timeLabel.isNotEmpty) timeLabel,

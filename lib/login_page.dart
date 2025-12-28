@@ -41,9 +41,9 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (_) => const DashboardPage()),
       );
     } on FirebaseAuthException catch (e) {
-      _toast(e.message ?? 'Giriş başarısız.');
+      _toast(e.message ?? 'Login failed.');
     } catch (e) {
-      _toast('Giriş hatası: $e');
+      _toast('Login error: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -52,14 +52,14 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _resetPassword() async {
     final email = _email.text.trim();
     if (email.isEmpty) {
-      _toast('Şifre sıfırlamak için email gir.');
+      _toast('Enter your email to reset the password.');
       return;
     }
     try {
       await _auth.sendPasswordResetEmail(email: email);
-      _toast('Sıfırlama maili gönderildi.');
+      _toast('Password reset email sent.');
     } on FirebaseAuthException catch (e) {
-      _toast(e.message ?? 'Sıfırlama başarısız.');
+      _toast(e.message ?? 'Password reset failed.');
     }
   }
 
@@ -85,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Tekrar hoş geldin 👋',
+                'Welcome back 👋',
                 style: Theme.of(context)
                     .textTheme
                     .headlineSmall
@@ -103,10 +103,10 @@ class _LoginPageState extends State<LoginPage> {
                 validator: (value) {
                   final text = value?.trim() ?? '';
                   if (text.isEmpty) {
-                    return 'Email gerekli';
+                    return 'Email is required';
                   }
                   if (!text.contains('@') || !text.contains('.')) {
-                    return 'Geçerli bir email gir';
+                    return 'Enter a valid email';
                   }
                   return null;
                 },
@@ -123,10 +123,10 @@ class _LoginPageState extends State<LoginPage> {
                 validator: (value) {
                   final text = value ?? '';
                   if (text.isEmpty) {
-                    return 'Şifre gerekli';
+                    return 'Password is required';
                   }
                   if (text.length < 6) {
-                    return 'Şifre en az 6 karakter olmalı';
+                    return 'Password must be at least 6 characters';
                   }
                   return null;
                 },
@@ -144,7 +144,7 @@ class _LoginPageState extends State<LoginPage> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: _loading ? null : _resetPassword,
-                  child: const Text('Şifremi unuttum'),
+                  child: const Text('Forgot password?'),
                 ),
               ),
               const SizedBox(height: 6),
@@ -158,14 +158,14 @@ class _LoginPageState extends State<LoginPage> {
                           height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Giriş yap'),
+                      : const Text('Sign in'),
                 ),
               ),
               const SizedBox(height: 18),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Hesabın yok mu? '),
+                  const Text('Don’t have an account? '),
                   TextButton(
                     onPressed: _loading
                         ? null
@@ -173,7 +173,7 @@ class _LoginPageState extends State<LoginPage> {
                               MaterialPageRoute(
                                   builder: (_) => const RegisterPage()),
                             ),
-                    child: const Text('Hemen kaydol'),
+                    child: const Text('Sign up now'),
                   ),
                 ],
               ),

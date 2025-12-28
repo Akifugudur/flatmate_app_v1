@@ -58,7 +58,7 @@ class _RegisterPageState extends State<RegisterPage> {
         final List members = List.from(data['members'] ?? []);
         final taken = members.any((m) => (m['roomNumber'] as num?)?.toInt() == _roomNo);
         if (taken) {
-          throw Exception('Seçtiğin oda dolu.');
+          throw Exception('That room is already taken.');
         }
 
         tx.set(_fs.collection('users').doc(uid), {
@@ -90,7 +90,7 @@ class _RegisterPageState extends State<RegisterPage> {
         (_) => false,
       );
     } on FirebaseAuthException catch (e) {
-      _toast(e.message ?? 'Kayıt başarısız.');
+      _toast(e.message ?? 'Registration failed.');
     } catch (e) {
       _toast(e.toString());
     } finally {
@@ -114,7 +114,7 @@ class _RegisterPageState extends State<RegisterPage> {
               Center(child: Image.asset('assets/loogo.png', height: 88)),
               const SizedBox(height: 12),
               Text(
-                'Yeni FlatMate hesabı oluştur',
+                'Create a new FlatMate account',
                 style: Theme.of(context)
                     .textTheme
                     .headlineSmall
@@ -124,13 +124,13 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 24),
               _frostedField(
                 controller: _name,
-                label: 'Ad soyad',
+                label: 'Full name',
                 icon: Icons.person_outline,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.name],
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'İsim gerekli';
+                    return 'Name is required';
                   }
                   return null;
                 },
@@ -146,10 +146,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 validator: (value) {
                   final text = value?.trim() ?? '';
                   if (text.isEmpty) {
-                    return 'Email gerekli';
+                    return 'Email is required';
                   }
                   if (!text.contains('@') || !text.contains('.')) {
-                    return 'Geçerli bir email gir';
+                    return 'Enter a valid email';
                   }
                   return null;
                 },
@@ -157,7 +157,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 14),
               _frostedField(
                 controller: _password,
-                label: 'Şifre',
+                label: 'Password',
                 icon: Icons.lock_outline,
                 obscure: _obscure,
                 textInputAction: TextInputAction.next,
@@ -165,10 +165,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 validator: (value) {
                   final text = value ?? '';
                   if (text.isEmpty) {
-                    return 'Şifre gerekli';
+                    return 'Password is required';
                   }
                   if (text.length < 6) {
-                    return 'Şifre en az 6 karakter olmalı';
+                    return 'Password must be at least 6 characters';
                   }
                   return null;
                 },
@@ -190,13 +190,13 @@ class _RegisterPageState extends State<RegisterPage> {
                           height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Kaydı tamamla'),
+                      : const Text('Complete signup'),
                 ),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: _loading ? null : () => Navigator.pop(context),
-                child: const Text('Zaten hesabım var'),
+                child: const Text('I already have an account'),
               ),
             ],
           ),
@@ -208,7 +208,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget _roomSelector() {
     final items = List.generate(20, (i) => i + 1);
     return FormField<int>(
-      validator: (_) => _roomNo == null ? 'Oda seçmelisin' : null,
+      validator: (_) => _roomNo == null ? 'You must select a room' : null,
       builder: (state) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,13 +227,13 @@ class _RegisterPageState extends State<RegisterPage> {
                   dropdownColor: const Color(0xFF2B2A49),
                   iconEnabledColor: Colors.white70,
                   hint: Text(
-                    'Oda numarası seç',
+                    'Select a room number',
                     style: TextStyle(color: Colors.white.withOpacity(0.72)),
                   ),
                   items: items
                       .map((n) => DropdownMenuItem(
                             value: n,
-                            child: Text('Oda $n', style: const TextStyle(color: Colors.white)),
+                            child: Text('Room $n', style: const TextStyle(color: Colors.white)),
                           ))
                       .toList(),
                   onChanged: (v) {

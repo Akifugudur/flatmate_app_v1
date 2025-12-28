@@ -71,7 +71,7 @@ class _HistoryList extends StatelessWidget {
       stream: query.snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
-          return Center(child: Text('Hata: ${snap.error}'));
+          return Center(child: Text('Error: ${snap.error}'));
         }
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -79,7 +79,7 @@ class _HistoryList extends StatelessWidget {
 
         final docs = snap.data!.docs;
         if (docs.isEmpty) {
-          return const Center(child: Text('Henüz tarihçe yok.'));
+          return const Center(child: Text('No history yet.'));
         }
 
         return Card(
@@ -102,7 +102,7 @@ class _HistoryList extends StatelessWidget {
 
               return ListTile(
                 leading: _ProofThumb(url: proof),
-                title: Text('$task • Oda $room'),
+                title: Text('$task • Room $room'),
                 subtitle: Text([
                   if (by.isNotEmpty) by,
                   if (timeStr.isNotEmpty) timeStr,
@@ -123,7 +123,7 @@ class _HistoryList extends StatelessWidget {
                                       ),
                                 errorBuilder: (c, e, s) => const Padding(
                                   padding: EdgeInsets.all(24),
-                                  child: Text('Görsel yüklenemedi.'),
+                                  child: Text('Image failed to load.'),
                                 ),
                               ),
                             ),
